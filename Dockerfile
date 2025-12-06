@@ -17,10 +17,13 @@ RUN pnpm install --frozen-lockfile
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps ./apps
+COPY --from=deps /app/packages ./packages
 COPY . .
 
-# Generate Prisma Client
-RUN pnpm --filter @vibe-taxi/database db:generate
+# Install workspace dependencies and generate Prisma Client
+RUN pnpm install --frozen-lockfile && \
+    pnpm --filter @vibe-taxi/database db:generate
 
 # Build all apps
 RUN pnpm build
