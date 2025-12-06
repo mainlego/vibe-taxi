@@ -164,7 +164,7 @@ export const referralRoutes: FastifyPluginAsync = async (fastify) => {
     const driver = await prisma.driver.findUnique({
       where: { referralCode: code },
       include: {
-        user: { select: { name: true, avatar: true } }
+        user: { select: { name: true, avatar: true, rating: true } }
       }
     })
 

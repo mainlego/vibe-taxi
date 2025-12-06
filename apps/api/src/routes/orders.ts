@@ -95,13 +95,19 @@ export const orderRoutes: FastifyPluginAsync = async (fastify) => {
           where: {
             code: data.promoCode.toUpperCase(),
             isActive: true,
-            OR: [
-              { validUntil: null },
-              { validUntil: { gte: new Date() } },
-            ],
-            OR: [
-              { usageLimit: null },
-              { usageCount: { lt: prisma.promoCode.fields.usageLimit } },
+            AND: [
+              {
+                OR: [
+                  { validUntil: null },
+                  { validUntil: { gte: new Date() } },
+                ],
+              },
+              {
+                OR: [
+                  { usageLimit: null },
+                  { usageCount: { lt: prisma.promoCode.fields.usageLimit } },
+                ],
+              },
             ],
           },
         })
