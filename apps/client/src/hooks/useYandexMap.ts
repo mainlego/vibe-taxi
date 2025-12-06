@@ -26,7 +26,7 @@ export function useYandexMap(
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
 
   const mapRef = useRef<any>(null)
-  const ymapsRef = useRef<typeof ymaps | null>(null)
+  const ymapsRef = useRef<any>(null)
   const markersRef = useRef<Map<string, any>>(new Map())
   const routeRef = useRef<any>(null)
 
