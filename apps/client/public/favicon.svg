@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="carGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bgGradient)"/>
+
+  <!-- Car body -->
+  <path d="M100 320 L130 250 Q140 230 160 230 L352 230 Q372 230 382 250 L412 320"
+        fill="url(#carGradient)" stroke="#ffffff" stroke-width="8"/>
+
+  <!-- Car roof -->
+  <path d="M160 230 L185 170 Q195 150 220 150 L292 150 Q317 150 327 170 L352 230"
+        fill="url(#carGradient)" stroke="#ffffff" stroke-width="8"/>
+
+  <!-- Windows -->
+  <path d="M175 220 L195 175 Q200 165 215 165 L255 165 L255 220 Z"
+        fill="#ffffff" fill-opacity="0.9"/>
+  <path d="M265 165 L297 165 Q312 165 317 175 L337 220 L265 220 Z"
+        fill="#ffffff" fill-opacity="0.9"/>
+
+  <!-- Car bottom -->
+  <rect x="90" y="320" width="332" height="50" rx="10" fill="url(#carGradient)" stroke="#ffffff" stroke-width="8"/>
+
+  <!-- Wheels -->
+  <circle cx="160" cy="370" r="45" fill="#374151" stroke="#ffffff" stroke-width="8"/>
+  <circle cx="160" cy="370" r="20" fill="#6b7280"/>
+  <circle cx="352" cy="370" r="45" fill="#374151" stroke="#ffffff" stroke-width="8"/>
+  <circle cx="352" cy="370" r="20" fill="#6b7280"/>
+
+  <!-- Taxi sign -->
+  <rect x="210" y="120" width="92" height="35" rx="8" fill="#ffffff"/>
+  <text x="256" y="145" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#6366f1" text-anchor="middle">VIBE</text>
+
+  <!-- Headlights -->
+  <ellipse cx="110" cy="290" rx="15" ry="20" fill="#ffffff" fill-opacity="0.9"/>
+  <ellipse cx="402" cy="290" rx="15" ry="20" fill="#ffffff" fill-opacity="0.9"/>
+</svg>

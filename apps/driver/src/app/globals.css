@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+  padding-top: var(--safe-area-inset-top);
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.btn-primary {
+  @apply bg-primary-500 text-white font-semibold py-3 px-6 rounded-xl
+         hover:bg-primary-600 active:bg-primary-700
+         disabled:bg-gray-300 disabled:cursor-not-allowed
+         transition-colors duration-200;
+}
+
+.btn-secondary {
+  @apply bg-white text-gray-700 font-medium py-3 px-6 rounded-xl
+         border border-gray-200
+         hover:bg-gray-50 active:bg-gray-100
+         transition-colors duration-200;
+}
+
+.btn-danger {
+  @apply bg-red-500 text-white font-semibold py-3 px-6 rounded-xl
+         hover:bg-red-600 active:bg-red-700
+         transition-colors duration-200;
+}
+
+.input {
+  @apply w-full px-4 py-3 rounded-xl border border-gray-200
+         focus:border-primary-500 focus:ring-2 focus:ring-primary-100
+         outline-none transition-all duration-200
+         placeholder:text-gray-400;
+}
+
+.card {
+  @apply bg-white rounded-2xl shadow-sm border border-gray-100;
+}
+
+.bottom-sheet {
+  @apply fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-50;
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+/* Status indicator */
+.status-online {
+  @apply bg-green-500;
+}
+
+.status-offline {
+  @apply bg-gray-400;
+}
+
+.status-busy {
+  @apply bg-yellow-500;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.pulse-green {
+  animation: pulse-green 2s infinite;
+}
+
+/* Safe area for bottom navigation */
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}

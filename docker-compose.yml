@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: vibe-taxi-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vibeuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vibepassword}
+      POSTGRES_DB: ${POSTGRES_DB:-vibe_taxi}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vibeuser} -d ${POSTGRES_DB:-vibe_taxi}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # API Server
+  api:
+    build:
+      context: .
+      target: api
+    container_name: vibe-taxi-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vibeuser}:${POSTGRES_PASSWORD:-vibepassword}@postgres:5432/${POSTGRES_DB:-vibe_taxi}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-me}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      DRIVER_URL: ${DRIVER_URL:-http://localhost:3002}
+      ADMIN_URL: ${ADMIN_URL:-http://localhost:3003}
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Client App
+  client:
+    build:
+      context: .
+      target: client
+    container_name: vibe-taxi-client
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:3001}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  # Driver App
+  driver:
+    build:
+      context: .
+      target: driver
+    container_name: vibe-taxi-driver
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:3001}
+    ports:
+      - "3002:3002"
+    depends_on:
+      - api
+
+  # Admin Panel
+  admin:
+    build:
+      context: .
+      target: admin
+    container_name: vibe-taxi-admin
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:3001}
+    ports:
+      - "3003:3003"
+    depends_on:
+      - api
+
+  # Nginx Reverse Proxy (optional, for production)
+  nginx:
+    image: nginx:alpine
+    container_name: vibe-taxi-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+      - client
+      - driver
+      - admin
+    profiles:
+      - production
+
+volumes:
+  postgres_data:

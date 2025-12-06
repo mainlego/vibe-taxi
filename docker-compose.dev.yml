@@ -1,0 +1,59 @@
+version: '3.8'
+
+# Development docker-compose
+# Run with: docker-compose -f docker-compose.dev.yml up -d
+# Or manually: docker run commands (see below)
+
+# Manual commands (if docker-compose has issues):
+# docker network create vibe-taxi-network
+# docker run -d --name vibe-taxi-postgres --network vibe-taxi-network -e POSTGRES_USER=vibeuser -e POSTGRES_PASSWORD=vibepassword -e POSTGRES_DB=vibe_taxi -p 5436:5432 -v vibe-taxi-postgres-data:/var/lib/postgresql/data --restart unless-stopped postgres:16-alpine
+# docker run -d --name vibe-taxi-redis --network vibe-taxi-network -p 6381:6379 -v vibe-taxi-redis-data:/data --restart unless-stopped redis:7-alpine redis-server --appendonly yes
+
+services:
+  # PostgreSQL Database for development
+  postgres:
+    image: postgres:16-alpine
+    container_name: vibe-taxi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vibeuser
+      POSTGRES_PASSWORD: vibepassword
+      POSTGRES_DB: vibe_taxi
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5436:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vibeuser -d vibe_taxi"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vibe-network
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: vibe-taxi-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6381:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vibe-network
+
+networks:
+  vibe-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

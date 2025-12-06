@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+  padding-top: var(--safe-area-inset-top);
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+/* Hide scrollbar but keep functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Button states */
+.btn-primary {
+  @apply bg-primary-500 text-white font-semibold py-3 px-6 rounded-xl
+         hover:bg-primary-600 active:bg-primary-700
+         disabled:bg-gray-300 disabled:cursor-not-allowed
+         transition-colors duration-200;
+}
+
+.btn-secondary {
+  @apply bg-white text-gray-700 font-medium py-3 px-6 rounded-xl
+         border border-gray-200
+         hover:bg-gray-50 active:bg-gray-100
+         transition-colors duration-200;
+}
+
+/* Input styles */
+.input {
+  @apply w-full px-4 py-3 rounded-xl border border-gray-200
+         focus:border-primary-500 focus:ring-2 focus:ring-primary-100
+         outline-none transition-all duration-200
+         placeholder:text-gray-400;
+}
+
+/* Card styles */
+.card {
+  @apply bg-white rounded-2xl shadow-sm border border-gray-100;
+}
+
+/* Map container */
+.map-container {
+  @apply w-full h-full absolute inset-0;
+}
+
+/* Bottom sheet */
+.bottom-sheet {
+  @apply fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-50;
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+/* Animations */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Pulse animation for waiting states */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.pulse-ring {
+  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+/* Safe area for bottom navigation */
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+/* Bottom navigation spacer for pages with nav */
+.has-bottom-nav {
+  padding-bottom: 5rem; /* 80px for bottom nav + safe area */
+}

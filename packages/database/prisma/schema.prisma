@@ -1,0 +1,376 @@
+// Vibe Taxi - PostgreSQL Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ПОЛЬЗОВАТЕЛИ ====================
+
+model User {
+  id          String   @id @default(cuid())
+  phone       String?  @unique
+  telegramId  String?  @unique
+  name        String
+  email       String?  @unique
+  avatar      String?
+  rating      Float    @default(5.0)
+  role        UserRole @default(CLIENT)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Связи
+  clientOrders  Order[]   @relation("ClientOrders")
+  driverOrders  Order[]   @relation("DriverOrders")
+  driver        Driver?
+  addresses     Address[]
+  payments      Payment[]
+  reviews       Review[]  @relation("ReviewAuthor")
+  receivedReviews Review[] @relation("ReviewTarget")
+  notifications Notification[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  CLIENT
+  DRIVER
+  ADMIN
+  SUPPORT
+}
+
+// ==================== ВОДИТЕЛИ ====================
+
+model Driver {
+  id              String       @id @default(cuid())
+  userId          String       @unique
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Автомобиль
+  carModel        String
+  carNumber       String       @unique
+  carColor        String?
+  carYear         Int?
+  carClass        CarClass     @default(ECONOMY)
+
+  // Документы
+  licenseNumber   String?
+  licenseExpiry   DateTime?
+  isVerified      Boolean      @default(false)
+
+  // Статус
+  status          DriverStatus @default(OFFLINE)
+  currentLat      Float?
+  currentLng      Float?
+  lastLocationAt  DateTime?
+
+  // Статистика
+  totalTrips      Int          @default(0)
+  totalEarnings   Float        @default(0)
+  acceptanceRate  Float        @default(100)
+
+  // Реферальная система
+  referralCode    String       @unique @default(cuid())
+  referredById    String?
+  referredBy      Driver?      @relation("DriverReferrals", fields: [referredById], references: [id])
+  referrals       Driver[]     @relation("DriverReferrals")
+  referralBonus   Float        @default(0) // Накопленный бонус от рефералов
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Связи
+  currentOrder    Order?       @relation("CurrentDriverOrder")
+  referralPayouts ReferralPayout[]
+
+  @@map("drivers")
+}
+
+enum DriverStatus {
+  ONLINE
+  OFFLINE
+  BUSY
+  BREAK
+}
+
+enum CarClass {
+  ECONOMY
+  COMFORT
+  BUSINESS
+  PREMIUM
+}
+
+// ==================== ЗАКАЗЫ ====================
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique @default(cuid())
+
+  // Участники
+  clientId        String
+  client          User        @relation("ClientOrders", fields: [clientId], references: [id])
+  driverId        String?
+  driver          User?       @relation("DriverOrders", fields: [driverId], references: [id])
+
+  // Текущий водитель (для связи с Driver)
+  currentDriverId String?     @unique
+  currentDriver   Driver?     @relation("CurrentDriverOrder", fields: [currentDriverId], references: [id])
+
+  // Маршрут
+  pickupAddress   String
+  pickupLat       Float
+  pickupLng       Float
+  dropoffAddress  String
+  dropoffLat      Float
+  dropoffLng      Float
+
+  // Детали поездки
+  distance        Float       // в км
+  duration        Int?        // в минутах
+  estimatedTime   Int         // предполагаемое время в минутах
+
+  // Стоимость
+  price           Float
+  finalPrice      Float?
+  surge           Float       @default(1.0) // коэффициент повышения
+  tips            Float       @default(0)
+
+  // Параметры
+  carClass        CarClass    @default(ECONOMY)
+  paymentMethod   PaymentMethod @default(CASH)
+
+  // Статус
+  status          OrderStatus @default(PENDING)
+  cancelReason    String?
+  cancelledBy     String?     // client | driver | system
+
+  // Временные метки
+  createdAt       DateTime    @default(now())
+  acceptedAt      DateTime?
+  arrivedAt       DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+
+  // Связи
+  payment         Payment?
+  reviews         Review[]
+  statusHistory   OrderStatusHistory[]
+
+  @@index([clientId])
+  @@index([driverId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING       // Ожидает водителя
+  ACCEPTED      // Водитель принял
+  ARRIVED       // Водитель прибыл
+  IN_PROGRESS   // Поездка началась
+  COMPLETED     // Завершена
+  CANCELLED     // Отменена
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  WALLET
+}
+
+// История статусов заказа
+model OrderStatusHistory {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  comment   String?
+  createdAt DateTime    @default(now())
+
+  @@index([orderId])
+  @@map("order_status_history")
+}
+
+// ==================== АДРЕСА ====================
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String   // "Дом", "Работа", etc
+  address   String
+  lat       Float
+  lng       Float
+
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+// ==================== ПЛАТЕЖИ ====================
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String        @unique
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+
+  amount        Float
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+
+  transactionId String?
+  errorMessage  String?
+
+  createdAt     DateTime      @default(now())
+  paidAt        DateTime?
+
+  @@index([userId])
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ==================== ОТЗЫВЫ ====================
+
+model Review {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  authorId  String
+  author    User     @relation("ReviewAuthor", fields: [authorId], references: [id])
+  targetId  String
+  target    User     @relation("ReviewTarget", fields: [targetId], references: [id])
+
+  rating    Int      // 1-5
+  comment   String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([orderId, authorId])
+  @@index([targetId])
+  @@map("reviews")
+}
+
+// ==================== УВЕДОМЛЕНИЯ ====================
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  ORDER_ACCEPTED
+  DRIVER_ARRIVED
+  TRIP_STARTED
+  TRIP_COMPLETED
+  ORDER_CANCELLED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  PROMO
+  SYSTEM
+}
+
+// ==================== ТАРИФЫ ====================
+
+model Tariff {
+  id            String   @id @default(cuid())
+  carClass      CarClass @unique
+
+  baseFare      Float    // Базовая стоимость
+  perKm         Float    // За километр
+  perMinute     Float    // За минуту
+  minFare       Float    // Минимальная стоимость
+
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("tariffs")
+}
+
+// ==================== ПРОМОКОДЫ ====================
+
+model PromoCode {
+  id            String    @id @default(cuid())
+  code          String    @unique
+
+  discountType  DiscountType
+  discountValue Float
+  maxDiscount   Float?
+
+  usageLimit    Int?
+  usageCount    Int       @default(0)
+
+  validFrom     DateTime  @default(now())
+  validUntil    DateTime?
+
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+
+  @@map("promo_codes")
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+// ==================== РЕФЕРАЛЬНАЯ СИСТЕМА ====================
+
+model ReferralPayout {
+  id          String   @id @default(cuid())
+  driverId    String
+  driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  amount      Float    // Сумма выплаты
+  reason      String   // "registration" | "trip_bonus" | "milestone"
+  description String?
+
+  isPaid      Boolean  @default(false)
+  paidAt      DateTime?
+
+  createdAt   DateTime @default(now())
+
+  @@index([driverId])
+  @@map("referral_payouts")
+}
+
+// ==================== НАСТРОЙКИ ====================
+
+model Settings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}

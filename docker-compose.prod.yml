@@ -1,0 +1,127 @@
+version: '3.8'
+
+# Production docker-compose for low-memory server (1GB RAM)
+# Uses external PostgreSQL database from Reg.ru
+# Run with: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  # API Server
+  api:
+    build:
+      context: .
+      target: api
+    container_name: vibe-taxi-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      CLIENT_URL: ${CLIENT_URL}
+      DRIVER_URL: ${DRIVER_URL}
+      ADMIN_URL: ${ADMIN_URL}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+    ports:
+      - "3001:3001"
+    networks:
+      - vibe-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Client App (passenger)
+  client:
+    build:
+      context: .
+      target: client
+    container_name: vibe-taxi-client
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${API_URL}
+      NEXT_PUBLIC_WS_URL: ${WS_URL}
+      NEXT_PUBLIC_YANDEX_MAPS_API_KEY: ${YANDEX_MAPS_API_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - vibe-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
+  # Driver App
+  driver:
+    build:
+      context: .
+      target: driver
+    container_name: vibe-taxi-driver
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${API_URL}
+      NEXT_PUBLIC_WS_URL: ${WS_URL}
+      NEXT_PUBLIC_YANDEX_MAPS_API_KEY: ${YANDEX_MAPS_API_KEY}
+    ports:
+      - "3002:3002"
+    depends_on:
+      - api
+    networks:
+      - vibe-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: vibe-taxi-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - certbot-webroot:/var/www/certbot:ro
+      - certbot-certs:/etc/letsencrypt:ro
+    depends_on:
+      - api
+      - client
+      - driver
+    networks:
+      - vibe-network
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # Certbot for SSL (optional, run manually)
+  certbot:
+    image: certbot/certbot
+    container_name: vibe-taxi-certbot
+    volumes:
+      - certbot-webroot:/var/www/certbot
+      - certbot-certs:/etc/letsencrypt
+    profiles:
+      - ssl
+    command: certonly --webroot -w /var/www/certbot --email admin@vibe-taxi.ru -d vibe-taxi.ru -d www.vibe-taxi.ru -d api.vibe-taxi.ru -d driver.vibe-taxi.ru --agree-tos --no-eff-email
+
+networks:
+  vibe-network:
+    driver: bridge
+
+volumes:
+  certbot-webroot:
+  certbot-certs:
