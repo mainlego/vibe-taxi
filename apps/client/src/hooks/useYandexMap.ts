@@ -232,14 +232,14 @@ export function useYandexMap(
   const fitBounds = useCallback((points: [number, number][]) => {
     if (!mapRef.current || points.length === 0) return
 
-    const bounds = points.reduce(
+    const bounds = points.reduce<[[number, number], [number, number]]>(
       (acc, point) => {
         return [
           [Math.min(acc[0][0], point[0]), Math.min(acc[0][1], point[1])],
           [Math.max(acc[1][0], point[0]), Math.max(acc[1][1], point[1])]
         ]
       },
-      [[points[0][0], points[0][1]], [points[0][0], points[0][1]]] as [[number, number], [number, number]]
+      [[points[0][0], points[0][1]], [points[0][0], points[0][1]]]
     )
 
     mapRef.current.setBounds(bounds, { checkZoomRange: true, zoomMargin: 50 })
