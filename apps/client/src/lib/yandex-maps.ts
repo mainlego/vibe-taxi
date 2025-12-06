@@ -1,12 +1,12 @@
 declare global {
   interface Window {
-    ymaps: typeof ymaps
+    ymaps: any
   }
 }
 
-let ymapsPromise: Promise<typeof ymaps> | null = null
+let ymapsPromise: Promise<any> | null = null
 
-export function loadYandexMaps(): Promise<typeof ymaps> {
+export function loadYandexMaps(): Promise<any> {
   if (ymapsPromise) return ymapsPromise
 
   ymapsPromise = new Promise((resolve, reject) => {
