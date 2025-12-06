@@ -275,9 +275,10 @@ export default function OrderPage() {
           [dropoff.lat, dropoff.lng]
         )
         if (result) {
-          setRouteInfo(result as { distance: number; duration: number })
-          setDistance(result.distance / 1000) // convert to km
-          setEstimatedTime(Math.ceil(result.duration / 60)) // convert to minutes
+          const routeData = result as { distance: number; duration: number }
+          setRouteInfo(routeData)
+          setDistance(routeData.distance / 1000) // convert to km
+          setEstimatedTime(Math.ceil(routeData.duration / 60)) // convert to minutes
         } else {
           // Fallback: calculate approximate distance if route API fails
           const straightLineDistance = calculateHaversineDistance(
