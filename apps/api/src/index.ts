@@ -20,6 +20,7 @@ import { uploadRoutes } from './routes/upload.js'
 import { pointsRoutes } from './routes/points.js'
 import { rewardsRoutes } from './routes/rewards.js'
 import { subscriptionRoutes } from './routes/subscriptions.js'
+import paymentsRoutes from './routes/payments.js'
 
 // Socket handlers
 import { setupSocketHandlers } from './socket/index.js'
@@ -84,6 +85,7 @@ async function buildServer() {
   await fastify.register(pointsRoutes, { prefix: '/api/points' })
   await fastify.register(rewardsRoutes, { prefix: '/api/rewards' })
   await fastify.register(subscriptionRoutes, { prefix: '/api/subscriptions' })
+  await fastify.register(paymentsRoutes, { prefix: '/api/payments' })
 
   return fastify
 }

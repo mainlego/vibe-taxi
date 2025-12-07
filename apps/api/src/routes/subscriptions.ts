@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '@vibe-taxi/database'
-import { yooKassaService } from '../services/yookassa.js'
+import { yookassa } from '../lib/yookassa.js'
 
 const purchaseSubscriptionSchema = z.object({
   planId: z.string().min(1),
@@ -158,7 +158,7 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
       const returnUrl = `${baseUrl}/subscription/success?subscriptionId=${subscription.id}`
 
       // Create payment in YooKassa
-      const payment = await yooKassaService.createPayment({
+      const payment = await yookassa.createPayment({
         amount: plan.price,
         description: `Подписка "${plan.name}" - ${plan.durationDays} дней`,
         returnUrl,
@@ -305,7 +305,7 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     // If still pending, check with YooKassa
     if (payment.status === 'PENDING') {
       try {
-        const yooKassaPayment = await yooKassaService.getPayment(paymentId)
+        const yooKassaPayment = await yookassa.getPayment(paymentId)
 
         if (yooKassaPayment.status === 'succeeded') {
           // Update payment
@@ -393,7 +393,7 @@ export const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     // If subscription is still pending, check payment
     if (subscription.status === 'PENDING' && subscription.paymentId) {
       try {
-        const payment = await yooKassaService.getPayment(subscription.paymentId)
+        const payment = await yookassa.getPayment(subscription.paymentId)
 
         if (payment.status === 'succeeded') {
           const startDate = new Date()
