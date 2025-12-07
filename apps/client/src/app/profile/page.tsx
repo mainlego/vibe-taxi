@@ -19,6 +19,8 @@ import {
   Camera,
   MessageCircle,
   Loader2,
+  Coins,
+  Gift,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { api } from '@/lib/api'
@@ -137,6 +139,18 @@ export default function ProfilePage() {
   }
 
   const menuItems = [
+    {
+      icon: Coins,
+      label: 'Мои баллы',
+      href: '/points',
+      color: 'text-amber-500',
+    },
+    {
+      icon: Gift,
+      label: 'Подарки',
+      href: '/rewards',
+      color: 'text-pink-500',
+    },
     {
       icon: History,
       label: 'История поездок',

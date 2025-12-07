@@ -32,6 +32,7 @@ model User {
   reviews       Review[]  @relation("ReviewAuthor")
   receivedReviews Review[] @relation("ReviewTarget")
   notifications Notification[]
+  clientPoints  ClientPoints?
 
   @@map("users")
 }
@@ -362,6 +363,137 @@ model ReferralPayout {
 
   @@index([driverId])
   @@map("referral_payouts")
+}
+
+// ==================== СИСТЕМА БАЛЛОВ КЛИЕНТА ====================
+
+model ClientPoints {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  balance     Int      @default(0)  // Текущий баланс баллов
+  totalEarned Int      @default(0)  // Всего заработано
+  totalSpent  Int      @default(0)  // Всего потрачено
+
+  // Реферальная система клиента
+  referralCode  String   @unique @default(cuid())
+  referredById  String?
+  referredBy    ClientPoints? @relation("ClientReferrals", fields: [referredById], references: [id])
+  referrals     ClientPoints[] @relation("ClientReferrals")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactions PointTransaction[]
+  redeemedRewards RedeemedReward[]
+
+  @@map("client_points")
+}
+
+// История транзакций баллов
+model PointTransaction {
+  id            String          @id @default(cuid())
+  clientPointsId String
+  clientPoints  ClientPoints    @relation(fields: [clientPointsId], references: [id], onDelete: Cascade)
+
+  amount        Int             // Положительное = начисление, отрицательное = списание
+  type          PointTransactionType
+  description   String
+
+  // Связь с заказом (если баллы за поездку)
+  orderId       String?
+
+  // Связь с подарком (если баллы потрачены на подарок)
+  redeemedRewardId String?
+
+  createdAt     DateTime        @default(now())
+
+  @@index([clientPointsId])
+  @@index([createdAt])
+  @@map("point_transactions")
+}
+
+enum PointTransactionType {
+  TRIP_COMPLETE     // За завершённую поездку
+  REFERRAL_BONUS    // За приглашённого друга
+  REFERRAL_TRIP     // За поездку реферала
+  REWARD_REDEMPTION // Потрачено на подарок
+  PROMO_BONUS       // Промо-начисление
+  ADMIN_ADJUSTMENT  // Корректировка админом
+  WELCOME_BONUS     // Бонус за регистрацию
+}
+
+// ==================== ПОДАРКИ / НАГРАДЫ ====================
+
+model Reward {
+  id            String   @id @default(cuid())
+
+  name          String   // "Бесплатная поездка до 300₽"
+  description   String   // Полное описание
+  icon          String?  // Иконка/эмодзи
+  image         String?  // URL картинки
+
+  type          RewardType
+  value         Float    // Значение (сумма скидки, процент и т.д.)
+
+  pointsCost    Int      // Сколько баллов стоит
+
+  // Ограничения
+  maxRedemptions Int?    // Макс. количество активаций (null = безлимит)
+  currentRedemptions Int @default(0)
+  expiresAt     DateTime? // Дата окончания доступности
+
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  redeemedRewards RedeemedReward[]
+
+  @@map("rewards")
+}
+
+enum RewardType {
+  FREE_TRIP       // Бесплатная поездка до N рублей
+  DISCOUNT_FIXED  // Фиксированная скидка N рублей
+  DISCOUNT_PERCENT // Процентная скидка
+  CASHBACK        // Кэшбэк с поездки
+  PRIORITY_PICKUP // Приоритетный поиск водителя
+}
+
+// Активированные подарки пользователя
+model RedeemedReward {
+  id              String   @id @default(cuid())
+
+  clientPointsId  String
+  clientPoints    ClientPoints @relation(fields: [clientPointsId], references: [id], onDelete: Cascade)
+
+  rewardId        String
+  reward          Reward   @relation(fields: [rewardId], references: [id])
+
+  pointsSpent     Int      // Сколько баллов потрачено
+
+  status          RedeemedRewardStatus @default(ACTIVE)
+
+  // Использование
+  usedOnOrderId   String?  // ID заказа, на котором использован
+  usedAt          DateTime?
+
+  expiresAt       DateTime // Дата истечения (обычно 30 дней)
+
+  createdAt       DateTime @default(now())
+
+  @@index([clientPointsId])
+  @@index([status])
+  @@map("redeemed_rewards")
+}
+
+enum RedeemedRewardStatus {
+  ACTIVE    // Активен, можно использовать
+  USED      // Использован
+  EXPIRED   // Истёк
 }
 
 // ==================== НАСТРОЙКИ ====================
