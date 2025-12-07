@@ -113,14 +113,42 @@ export default function ReferralsPage() {
     }
   }
 
+  const copyToClipboard = async (text: string) => {
+    // Try modern clipboard API first (works only in secure contexts)
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text)
+        return true
+      } catch (err) {
+        console.error('Clipboard API failed:', err)
+      }
+    }
+
+    // Fallback for HTTP - use textarea + execCommand
+    try {
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-9999px'
+      textArea.style.top = '-9999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      const success = document.execCommand('copy')
+      document.body.removeChild(textArea)
+      return success
+    } catch (err) {
+      console.error('Fallback copy failed:', err)
+      return false
+    }
+  }
+
   const copyCode = async () => {
     if (!info) return
-    try {
-      await navigator.clipboard.writeText(info.referralCode)
+    const success = await copyToClipboard(info.referralCode)
+    if (success) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy:', err)
     }
   }
 
@@ -138,9 +166,11 @@ export default function ReferralsPage() {
         console.error('Failed to share:', err)
       }
     } else {
-      await navigator.clipboard.writeText(shareText)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      const success = await copyToClipboard(shareText)
+      if (success) {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }
     }
   }
 
