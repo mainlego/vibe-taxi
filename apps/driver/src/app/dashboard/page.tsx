@@ -42,6 +42,8 @@ export default function DashboardPage() {
   const [completedOrder, setCompletedOrder] = useState<any>(null)
   const [clientRating, setClientRating] = useState<number>(5)
   const [paymentConfirmed, setPaymentConfirmed] = useState(false)
+  const [hasSubscription, setHasSubscription] = useState<boolean | null>(null)
+  const [checkingSubscription, setCheckingSubscription] = useState(false)
 
   const mapRef = useRef<ReturnType<typeof useYandexMap> | null>(null)
   const pendingOrderRef = useRef<any>(null)
@@ -260,6 +262,30 @@ export default function DashboardPage() {
 
   // Toggle online status
   const toggleOnline = async () => {
+    // If trying to go online, first check subscription
+    if (!isOnline) {
+      setCheckingSubscription(true)
+      try {
+        const subResponse = await api.get('/api/subscriptions/check')
+        const { hasActiveSubscription, canGoOnline } = subResponse.data
+
+        setHasSubscription(hasActiveSubscription)
+
+        if (!canGoOnline) {
+          // Redirect to subscription page
+          router.push('/subscription')
+          return
+        }
+      } catch (err) {
+        console.error('Failed to check subscription:', err)
+        // On error, redirect to subscription page to be safe
+        router.push('/subscription')
+        return
+      } finally {
+        setCheckingSubscription(false)
+      }
+    }
+
     try {
       const newStatus = isOnline ? 'OFFLINE' : 'ONLINE'
       await api.post('/api/drivers/status', { status: newStatus })
@@ -509,20 +535,30 @@ export default function DashboardPage() {
             <div className="p-6 text-center">
               <button
                 onClick={toggleOnline}
+                disabled={checkingSubscription}
                 className={clsx(
                   'w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center transition-all',
                   isOnline
                     ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/30'
-                    : 'bg-gray-200 text-gray-600'
+                    : 'bg-gray-200 text-gray-600',
+                  checkingSubscription && 'opacity-50'
                 )}
               >
-                <Power className="w-10 h-10" />
+                {checkingSubscription ? (
+                  <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Power className="w-10 h-10" />
+                )}
               </button>
               <p className="text-lg font-semibold">
-                {isOnline ? 'Вы на линии' : 'Выйти на линию'}
+                {checkingSubscription ? 'Проверка...' : isOnline ? 'Вы на линии' : 'Выйти на линию'}
               </p>
               <p className="text-gray-500 text-sm">
-                {isOnline ? 'Ожидание заказов...' : 'Нажмите, чтобы начать принимать заказы'}
+                {checkingSubscription
+                  ? 'Проверяем подписку'
+                  : isOnline
+                    ? 'Ожидание заказов...'
+                    : 'Нажмите, чтобы начать принимать заказы'}
               </p>
             </div>
           </SimpleBottomSheet>

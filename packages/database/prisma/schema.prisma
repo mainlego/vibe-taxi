@@ -87,6 +87,7 @@ model Driver {
   // Связи
   currentOrder    Order?       @relation("CurrentDriverOrder")
   referralPayouts ReferralPayout[]
+  subscriptions   DriverSubscription[]
 
   @@map("drivers")
 }
@@ -494,6 +495,112 @@ enum RedeemedRewardStatus {
   ACTIVE    // Активен, можно использовать
   USED      // Использован
   EXPIRED   // Истёк
+}
+
+// ==================== ПОДПИСКИ ВОДИТЕЛЕЙ ====================
+
+model SubscriptionPlan {
+  id            String   @id @default(cuid())
+  name          String   // "Базовая", "Стандарт", "Премиум"
+  description   String   // Описание тарифа
+  price         Float    // Цена в рублях
+  durationDays  Int      // Длительность в днях (7, 30, 90)
+
+  features      Json?    // Дополнительные фичи
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subscriptions DriverSubscription[]
+
+  @@map("subscription_plans")
+}
+
+model DriverSubscription {
+  id          String   @id @default(cuid())
+  driverId    String
+  driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  planId      String
+  plan        SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  status      SubscriptionStatus @default(PENDING)
+
+  startDate   DateTime?
+  endDate     DateTime?
+
+  // Информация о платеже
+  paymentId   String?  // ID платежа в ЮKassa
+  amount      Float    // Сумма оплаты
+
+  autoRenew   Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([driverId])
+  @@index([status])
+  @@map("driver_subscriptions")
+}
+
+enum SubscriptionStatus {
+  PENDING     // Ожидает оплаты
+  ACTIVE      // Активна
+  EXPIRED     // Истекла
+  CANCELLED   // Отменена
+}
+
+// Платежи ЮKassa
+model YooKassaPayment {
+  id              String   @id @default(cuid())
+
+  // ID платежа в ЮKassa
+  yooKassaId      String   @unique
+
+  // Тип оплаты
+  type            PaymentType
+
+  // Связи
+  driverId        String?
+  subscriptionId  String?
+
+  amount          Float
+  currency        String   @default("RUB")
+
+  status          YooKassaPaymentStatus @default(PENDING)
+
+  // Метаданные
+  description     String?
+  metadata        Json?
+
+  // URL подтверждения
+  confirmationUrl String?
+
+  // Ответ от ЮKassa
+  yooKassaResponse Json?
+
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([driverId])
+  @@index([yooKassaId])
+  @@map("yookassa_payments")
+}
+
+enum PaymentType {
+  SUBSCRIPTION    // Подписка
+  TIP             // Чаевые
+  OTHER           // Другое
+}
+
+enum YooKassaPaymentStatus {
+  PENDING         // Создан, ожидает оплаты
+  WAITING_FOR_CAPTURE // Ожидает подтверждения
+  SUCCEEDED       // Успешно оплачен
+  CANCELED        // Отменён
 }
 
 // ==================== НАСТРОЙКИ ====================

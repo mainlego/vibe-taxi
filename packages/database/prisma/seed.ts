@@ -153,6 +153,28 @@ async function main() {
   ])
   console.log(`✅ Created ${settings.length} settings`)
 
+  // Create subscription plan
+  const subscriptionPlan = await prisma.subscriptionPlan.upsert({
+    where: { id: 'plan_monthly' },
+    update: {
+      name: 'Месяц',
+      description: 'Полный доступ к заказам на 30 дней',
+      price: 4500,
+      durationDays: 30,
+      features: ['Полный доступ к заказам', 'Поддержка 24/7', 'Статистика заработка'],
+    },
+    create: {
+      id: 'plan_monthly',
+      name: 'Месяц',
+      description: 'Полный доступ к заказам на 30 дней',
+      price: 4500,
+      durationDays: 30,
+      features: ['Полный доступ к заказам', 'Поддержка 24/7', 'Статистика заработка'],
+      sortOrder: 1,
+    },
+  })
+  console.log(`✅ Created subscription plan: ${subscriptionPlan.name} - ${subscriptionPlan.price}₽`)
+
   console.log('\n🎉 Database seeded successfully!')
 }
 
