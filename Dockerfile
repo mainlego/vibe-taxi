@@ -21,9 +21,10 @@ COPY --from=deps /app/apps ./apps
 COPY --from=deps /app/packages ./packages
 COPY . .
 
-# Install workspace dependencies and generate Prisma Client
+# Install workspace dependencies, generate Prisma Client, and build database package
 RUN pnpm install --frozen-lockfile && \
-    pnpm --filter @vibe-taxi/database db:generate
+    pnpm --filter @vibe-taxi/database db:generate && \
+    pnpm --filter @vibe-taxi/database build
 
 # Build all apps
 RUN pnpm build
@@ -38,12 +39,14 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
 
-# Copy API package files
+# Copy API package files (compiled JS)
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
-# Copy database package
-COPY --from=builder /app/packages/database ./packages/database
+# Copy database package (with compiled dist and prisma schema)
+COPY --from=builder /app/packages/database/package.json ./packages/database/
+COPY --from=builder /app/packages/database/dist ./packages/database/dist
+COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
 
 # Install production dependencies only for api
 RUN pnpm install --prod --filter @vibe-taxi/api --filter @vibe-taxi/database && \
