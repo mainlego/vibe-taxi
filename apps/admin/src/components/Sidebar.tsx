@@ -11,6 +11,7 @@ import {
   DollarSign,
   BarChart3,
   Tag,
+  Crown,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Заказы', href: '/orders', icon: Package },
   { name: 'Пользователи', href: '/users', icon: Users },
   { name: 'Водители', href: '/drivers', icon: Car },
+  { name: 'Подписки', href: '/subscriptions', icon: Crown },
   { name: 'Тарифы', href: '/tariffs', icon: DollarSign },
   { name: 'Промокоды', href: '/promo', icon: Tag },
   { name: 'Аналитика', href: '/analytics', icon: BarChart3 },

@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '@vibe-taxi/database'
+import bcrypt from 'bcryptjs'
 
 const paginationSchema = z.object({
   page: z.string().transform(Number).default('1'),
@@ -24,6 +25,58 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(403).send({ error: 'Access denied' })
     }
   }
+
+  // ==================== AUTH ====================
+
+  fastify.post('/login', async (request, reply) => {
+    const loginSchema = z.object({
+      email: z.string().email(),
+      password: z.string().min(1),
+    })
+
+    try {
+      const { email, password } = loginSchema.parse(request.body)
+
+      // Find user by email
+      const user = await prisma.user.findFirst({
+        where: {
+          email,
+          role: { in: ['ADMIN', 'SUPPORT'] },
+        },
+      })
+
+      if (!user) {
+        return reply.status(401).send({ error: 'Неверный email или пароль' })
+      }
+
+      // Check password (stored in settings or use simple check for now)
+      // For simplicity, check against ADMIN_PASSWORD env or use hash
+      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
+
+      // Simple password check (in production use bcrypt)
+      if (password !== adminPassword) {
+        return reply.status(401).send({ error: 'Неверный email или пароль' })
+      }
+
+      // Generate JWT token
+      const token = fastify.jwt.sign({ userId: user.id })
+
+      return {
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: error.errors[0].message })
+      }
+      throw error
+    }
+  })
 
   // ==================== DASHBOARD STATS ====================
 
@@ -632,5 +685,336 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
       .map(([route, count]) => ({ route, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
+  })
+
+  // ==================== TARIFFS ====================
+
+  fastify.get('/tariffs', {
+    preHandler: [requireAdmin],
+  }, async () => {
+    const tariffs = await prisma.tariff.findMany({
+      orderBy: { carClass: 'asc' },
+    })
+    return tariffs
+  })
+
+  fastify.patch('/tariffs/:id', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const updateSchema = z.object({
+      baseFare: z.number().optional(),
+      perKm: z.number().optional(),
+      perMinute: z.number().optional(),
+      minFare: z.number().optional(),
+      surgeFactor: z.number().optional(),
+    })
+
+    try {
+      const data = updateSchema.parse(request.body)
+      const tariff = await prisma.tariff.update({
+        where: { id },
+        data,
+      })
+      return tariff
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: error.errors[0].message })
+      }
+      throw error
+    }
+  })
+
+  // ==================== PROMO CODES ====================
+
+  fastify.get('/promo', {
+    preHandler: [requireAdmin],
+  }, async (request) => {
+    const query = paginationSchema.parse(request.query)
+    const { page, limit, search } = query
+
+    const where: any = {}
+
+    if (search) {
+      where.code = { contains: search, mode: 'insensitive' }
+    }
+
+    const [promoCodes, total] = await Promise.all([
+      prisma.promoCode.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.promoCode.count({ where }),
+    ])
+
+    return {
+      promoCodes,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    }
+  })
+
+  fastify.post('/promo', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const createSchema = z.object({
+      code: z.string().min(3).max(20).toUpperCase(),
+      discountType: z.enum(['PERCENT', 'FIXED']),
+      discountValue: z.number().min(1),
+      maxDiscount: z.number().optional(),
+      minOrderAmount: z.number().optional(),
+      usageLimit: z.number().optional(),
+      validFrom: z.string().datetime().optional(),
+      validUntil: z.string().datetime().optional(),
+      isActive: z.boolean().default(true),
+    })
+
+    try {
+      const data = createSchema.parse(request.body)
+
+      // Check if code already exists
+      const existing = await prisma.promoCode.findUnique({
+        where: { code: data.code },
+      })
+
+      if (existing) {
+        return reply.status(400).send({ error: 'Промокод уже существует' })
+      }
+
+      const promoCode = await prisma.promoCode.create({
+        data: {
+          ...data,
+          validFrom: data.validFrom ? new Date(data.validFrom) : undefined,
+          validUntil: data.validUntil ? new Date(data.validUntil) : undefined,
+        },
+      })
+
+      return promoCode
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: error.errors[0].message })
+      }
+      throw error
+    }
+  })
+
+  fastify.patch('/promo/:id', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const updateSchema = z.object({
+      code: z.string().min(3).max(20).toUpperCase().optional(),
+      discountType: z.enum(['PERCENT', 'FIXED']).optional(),
+      discountValue: z.number().min(1).optional(),
+      maxDiscount: z.number().nullable().optional(),
+      minOrderAmount: z.number().nullable().optional(),
+      usageLimit: z.number().nullable().optional(),
+      validFrom: z.string().datetime().nullable().optional(),
+      validUntil: z.string().datetime().nullable().optional(),
+      isActive: z.boolean().optional(),
+    })
+
+    try {
+      const data = updateSchema.parse(request.body)
+
+      const promoCode = await prisma.promoCode.update({
+        where: { id },
+        data: {
+          ...data,
+          validFrom: data.validFrom ? new Date(data.validFrom) : data.validFrom === null ? null : undefined,
+          validUntil: data.validUntil ? new Date(data.validUntil) : data.validUntil === null ? null : undefined,
+        },
+      })
+
+      return promoCode
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: error.errors[0].message })
+      }
+      throw error
+    }
+  })
+
+  fastify.delete('/promo/:id', {
+    preHandler: [requireAdmin],
+  }, async (request) => {
+    const { id } = request.params as { id: string }
+    await prisma.promoCode.delete({ where: { id } })
+    return { success: true }
+  })
+
+  // ==================== SETTINGS ====================
+
+  fastify.get('/settings', {
+    preHandler: [requireAdmin],
+  }, async () => {
+    const settings = await prisma.settings.findMany()
+    // Convert to object for easier use
+    const settingsObj: Record<string, any> = {}
+    settings.forEach(s => {
+      settingsObj[s.key] = s.value
+    })
+    return settingsObj
+  })
+
+  fastify.patch('/settings', {
+    preHandler: [requireAdmin],
+  }, async (request) => {
+    const updates = request.body as Record<string, any>
+
+    // Update each setting
+    for (const [key, value] of Object.entries(updates)) {
+      await prisma.settings.upsert({
+        where: { key },
+        update: { value },
+        create: { key, value },
+      })
+    }
+
+    // Return updated settings
+    const settings = await prisma.settings.findMany()
+    const settingsObj: Record<string, any> = {}
+    settings.forEach(s => {
+      settingsObj[s.key] = s.value
+    })
+    return settingsObj
+  })
+
+  // ==================== SUBSCRIPTIONS ====================
+
+  fastify.get('/subscriptions', {
+    preHandler: [requireAdmin],
+  }, async () => {
+    const subscriptions = await prisma.driverSubscription.findMany({
+      include: {
+        driver: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+        plan: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return subscriptions
+  })
+
+  fastify.get('/subscription-plans', {
+    preHandler: [requireAdmin],
+  }, async () => {
+    const plans = await prisma.subscriptionPlan.findMany({
+      orderBy: { sortOrder: 'asc' },
+    })
+    return plans
+  })
+
+  fastify.patch('/subscription-plans/:id', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const updateSchema = z.object({
+      name: z.string().optional(),
+      description: z.string().optional(),
+      price: z.number().optional(),
+      durationDays: z.number().optional(),
+      features: z.array(z.string()).optional(),
+      isActive: z.boolean().optional(),
+    })
+
+    try {
+      const data = updateSchema.parse(request.body)
+      const plan = await prisma.subscriptionPlan.update({
+        where: { id },
+        data,
+      })
+      return plan
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: error.errors[0].message })
+      }
+      throw error
+    }
+  })
+
+  // Grant subscription manually (for testing or as bonus)
+  fastify.post('/subscriptions/grant', {
+    preHandler: [requireAdmin],
+  }, async (request, reply) => {
+    const grantSchema = z.object({
+      driverId: z.string(),
+      planId: z.string().optional(),
+      days: z.number().optional(),
+    })
+
+    try {
+      const { driverId, planId, days } = grantSchema.parse(request.body)
+
+      // Get default plan if not specified
+      let plan = planId
+        ? await prisma.subscriptionPlan.findUnique({ where: { id: planId } })
+        : await prisma.subscriptionPlan.findFirst({ where: { isActive: true }, orderBy: { sortOrder: 'asc' } })
+
+      if (!plan) {
+        return reply.status(404).send({ error: 'Тариф не найден' })
+      }
+
+      const now = new Date()
+      const endDate = new Date(now)
+      endDate.setDate(endDate.getDate() + (days || plan.durationDays))
+
+      const subscription = await prisma.driverSubscription.create({
+        data: {
+          driverId,
+          planId: plan.id,
+          status: 'ACTIVE',
+          startDate: now,
+          endDate,
+          amount: 0, // Free grant
+        },
+        include: {
+          driver: {
+            include: {
+              user: { select: { name: true, phone: true } },
+            },
+          },
+          plan: true,
+        },
+      })
+
+      return subscription
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: error.errors[0].message })
+      }
+      throw error
+    }
+  })
+
+  // Cancel subscription
+  fastify.patch('/subscriptions/:id/cancel', {
+    preHandler: [requireAdmin],
+  }, async (request) => {
+    const { id } = request.params as { id: string }
+
+    const subscription = await prisma.driverSubscription.update({
+      where: { id },
+      data: { status: 'CANCELLED' },
+    })
+
+    return subscription
   })
 }
