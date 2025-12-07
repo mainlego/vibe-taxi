@@ -82,11 +82,42 @@ export default function PointsPage() {
     }
   }
 
-  const handleCopyCode = () => {
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    // Try modern Clipboard API first (requires HTTPS)
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text)
+        return true
+      } catch {
+        // Fall through to fallback
+      }
+    }
+
+    // Fallback for HTTP and older browsers
+    try {
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-999999px'
+      textArea.style.top = '-999999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      const success = document.execCommand('copy')
+      document.body.removeChild(textArea)
+      return success
+    } catch {
+      return false
+    }
+  }
+
+  const handleCopyCode = async () => {
     if (data?.referralCode) {
-      navigator.clipboard.writeText(data.referralCode)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      const success = await copyToClipboard(data.referralCode)
+      if (success) {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }
     }
   }
 
@@ -98,10 +129,17 @@ export default function PointsPage() {
           await navigator.share({ text: shareText })
         } catch (err) {
           console.error('Share failed:', err)
+          // If share was cancelled, try copying
+          const success = await copyToClipboard(shareText)
+          if (success) {
+            alert('Ссылка скопирована в буфер обмена')
+          }
         }
       } else {
-        navigator.clipboard.writeText(shareText)
-        alert('Ссылка скопирована в буфер обмена')
+        const success = await copyToClipboard(shareText)
+        if (success) {
+          alert('Ссылка скопирована в буфер обмена')
+        }
       }
     }
   }
