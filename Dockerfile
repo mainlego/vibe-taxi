@@ -21,6 +21,16 @@ COPY --from=deps /app/apps ./apps
 COPY --from=deps /app/packages ./packages
 COPY . .
 
+# Build args for Next.js public environment variables (baked at build time)
+ARG NEXT_PUBLIC_API_URL=""
+ARG NEXT_PUBLIC_WS_URL=""
+ARG NEXT_PUBLIC_YANDEX_MAPS_API_KEY=""
+
+# Set environment variables for the build
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+ENV NEXT_PUBLIC_YANDEX_MAPS_API_KEY=$NEXT_PUBLIC_YANDEX_MAPS_API_KEY
+
 # Install workspace dependencies, generate Prisma Client, and build database package
 RUN pnpm install --frozen-lockfile && \
     pnpm --filter @vibe-taxi/database db:generate && \
