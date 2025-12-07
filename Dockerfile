@@ -93,6 +93,8 @@ CMD ["node", "apps/driver/server.js"]
 FROM base AS admin
 WORKDIR /app
 ENV NODE_ENV=production
+ENV PORT=3003
+ENV HOSTNAME=0.0.0.0
 
 COPY --from=builder /app/apps/admin/.next/standalone ./
 COPY --from=builder /app/apps/admin/.next/static ./apps/admin/.next/static
