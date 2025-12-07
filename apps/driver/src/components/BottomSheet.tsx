@@ -200,7 +200,7 @@ export function SimpleBottomSheet({
       exit={{ y: '100%' }}
       transition={{ type: 'spring', damping: 25, stiffness: 300 }}
       className={clsx(
-        'fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-50',
+        'fixed bottom-16 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-40',
         className
       )}
     >

@@ -27,7 +27,7 @@ export async function uploadFile(
     Key: filename,
     Body: buffer,
     ContentType: mimeType,
-    ACL: 'public-read',
+    // Note: ACL removed - configure bucket policy for public read access instead
   })
 
   await s3Client.send(command)
