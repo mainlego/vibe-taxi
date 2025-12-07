@@ -87,6 +87,28 @@ services:
         limits:
           memory: 192M
 
+  # Admin Panel
+  admin:
+    build:
+      context: .
+      target: admin
+      args:
+        - NEXT_PUBLIC_API_URL=${API_URL}
+    container_name: vibe-taxi-admin
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3003:3003"
+    depends_on:
+      - api
+    networks:
+      - vibe-network
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
