@@ -121,7 +121,7 @@ services:
       - certbot-certs:/etc/letsencrypt
     profiles:
       - ssl
-    command: certonly --webroot -w /var/www/certbot --email admin@vibe-taxi.ru -d vibe-taxi.ru -d www.vibe-taxi.ru -d api.vibe-taxi.ru -d driver.vibe-taxi.ru --agree-tos --no-eff-email
+    command: certonly --webroot -w /var/www/certbot --email admin@vibetaxi.ru -d vibetaxi.ru -d www.vibetaxi.ru -d api.vibetaxi.ru -d driver.vibetaxi.ru --agree-tos --no-eff-email
 
 networks:
   vibe-network:

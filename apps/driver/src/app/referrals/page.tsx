@@ -10,12 +10,13 @@ import {
   Copy,
   Share2,
   Check,
-  Trophy,
-  TrendingUp,
-  Clock,
   User,
-  ChevronRight,
   Wallet,
+  TrendingUp,
+  CreditCard,
+  Crown,
+  ChevronRight,
+  Info,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { api } from '@/lib/api'
@@ -23,42 +24,35 @@ import { clsx } from 'clsx'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
-interface Referral {
+interface ReferralUser {
   id: string
   name: string
   avatar: string | null
-  totalTrips: number
+  level: 1 | 2 | 3
+  totalEarnings: number
   joinedAt: string
-}
-
-interface Payout {
-  id: string
-  amount: number
-  reason: string
-  description: string | null
-  isPaid: boolean
-  paidAt: string | null
-  createdAt: string
 }
 
 interface ReferralInfo {
   referralCode: string
-  referredBy: { name: string } | null
-  referrals: Referral[]
+  referralLink: string
+  subscription: {
+    isActive: boolean
+    expiresAt: string | null
+    price: number
+    duration: number
+  }
+  levels: {
+    level1: { percent: number; count: number; earnings: number }
+    level2: { percent: number; count: number; earnings: number }
+    level3: { percent: number; count: number; earnings: number }
+  }
   stats: {
     totalReferrals: number
-    activeReferrals: number
-    totalEarned: number
-    pendingPayout: number
-    referralBonus: number
+    totalEarnings: number
+    monthlyEarnings: number
   }
-  recentPayouts: Payout[]
-  bonusRates: {
-    registration: number
-    firstTrip: number
-    milestone: number
-    milestoneTrips: number
-  }
+  referrals: ReferralUser[]
 }
 
 export default function ReferralsPage() {
@@ -68,7 +62,7 @@ export default function ReferralsPage() {
   const [info, setInfo] = useState<ReferralInfo | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [copied, setCopied] = useState(false)
-  const [activeTab, setActiveTab] = useState<'referrals' | 'payouts'>('referrals')
+  const [selectedLevel, setSelectedLevel] = useState<1 | 2 | 3 | 'all'>('all')
 
   useEffect(() => {
     checkAuth()
@@ -89,8 +83,29 @@ export default function ReferralsPage() {
   const fetchReferralInfo = async () => {
     try {
       setIsLoading(true)
-      const response = await api.get('/api/referrals/info')
-      setInfo(response.data)
+      // В реальном приложении здесь будет запрос к API
+      // Пока используем моковые данные
+      setInfo({
+        referralCode: 'DRIVER123',
+        referralLink: 'https://vibetaxi.ru/join?ref=DRIVER123',
+        subscription: {
+          isActive: true,
+          expiresAt: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
+          price: 4500,
+          duration: 30,
+        },
+        levels: {
+          level1: { percent: 15, count: 3, earnings: 4500 },
+          level2: { percent: 10, count: 5, earnings: 2000 },
+          level3: { percent: 5, count: 12, earnings: 1500 },
+        },
+        stats: {
+          totalReferrals: 20,
+          totalEarnings: 8000,
+          monthlyEarnings: 3500,
+        },
+        referrals: [],
+      })
     } catch (err) {
       console.error('Failed to fetch referral info:', err)
     } finally {
@@ -109,15 +124,15 @@ export default function ReferralsPage() {
     }
   }
 
-  const shareCode = async () => {
+  const shareLink = async () => {
     if (!info) return
-    const shareText = `Присоединяйся к Vibe Taxi как водитель! Используй мой реферальный код: ${info.referralCode} и получи бонус после первой поездки!`
+    const shareText = `Присоединяйся к Vibe Go как водитель! 🚗\n\nИспользуй мой реферальный код: ${info.referralCode}\n\nИли перейди по ссылке: ${info.referralLink}`
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Vibe Taxi - Реферальный код',
-          text: shareText
+          title: 'Vibe Go - Реферальный код',
+          text: shareText,
         })
       } catch (err) {
         console.error('Failed to share:', err)
@@ -129,17 +144,9 @@ export default function ReferralsPage() {
     }
   }
 
-  const getReasonLabel = (reason: string) => {
-    switch (reason) {
-      case 'registration':
-        return 'Регистрация друга'
-      case 'first_trip':
-        return 'Первая поездка друга'
-      case 'milestone':
-        return 'Достижение'
-      default:
-        return reason
-    }
+  const getDaysLeft = (expiresAt: string) => {
+    const diff = new Date(expiresAt).getTime() - Date.now()
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
   }
 
   if (authLoading || isLoading) {
@@ -158,6 +165,10 @@ export default function ReferralsPage() {
     )
   }
 
+  const filteredReferrals = selectedLevel === 'all'
+    ? info.referrals
+    : info.referrals.filter((r) => r.level === selectedLevel)
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       {/* Header */}
@@ -166,33 +177,67 @@ export default function ReferralsPage() {
           <button onClick={() => router.back()} className="p-2 -ml-2">
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-xl font-bold">Реферальная программа</h1>
+          <h1 className="text-xl font-bold">Партнёрская программа</h1>
         </div>
 
-        {/* Stats cards */}
+        {/* Total Earnings */}
         <div className="px-4 mt-2">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4">
-              <div className="flex items-center gap-2 text-primary-100 mb-1">
-                <Users className="w-4 h-4" />
-                <span className="text-sm">Приглашено</span>
+          <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-primary-100 text-sm">Заработано за всё время</p>
+                <p className="text-3xl font-bold mt-1">{info.stats.totalEarnings.toLocaleString()} ₽</p>
               </div>
-              <p className="text-2xl font-bold">{info.stats.totalReferrals}</p>
-            </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4">
-              <div className="flex items-center gap-2 text-primary-100 mb-1">
-                <Wallet className="w-4 h-4" />
-                <span className="text-sm">Заработано</span>
+              <div className="text-right">
+                <p className="text-primary-100 text-sm">За этот месяц</p>
+                <p className="text-xl font-bold mt-1 text-primary-100">+{info.stats.monthlyEarnings.toLocaleString()} ₽</p>
               </div>
-              <p className="text-2xl font-bold">{info.stats.totalEarned} ₽</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Referral code card */}
+      {/* Subscription Status */}
       <div className="px-4 -mt-4">
-        <div className="bg-white rounded-2xl shadow-lg p-4">
+        <div className={clsx(
+          'rounded-2xl shadow-lg p-4',
+          info.subscription.isActive ? 'bg-white' : 'bg-amber-50 border border-amber-200'
+        )}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={clsx(
+                'w-12 h-12 rounded-full flex items-center justify-center',
+                info.subscription.isActive ? 'bg-green-100' : 'bg-amber-100'
+              )}>
+                <Crown className={clsx(
+                  'w-6 h-6',
+                  info.subscription.isActive ? 'text-green-500' : 'text-amber-500'
+                )} />
+              </div>
+              <div>
+                <p className="font-bold">
+                  {info.subscription.isActive ? 'Подписка активна' : 'Подписка неактивна'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {info.subscription.isActive && info.subscription.expiresAt
+                    ? `Осталось ${getDaysLeft(info.subscription.expiresAt)} дней`
+                    : `${info.subscription.price} ₽ / ${info.subscription.duration} дней`
+                  }
+                </p>
+              </div>
+            </div>
+            {!info.subscription.isActive && (
+              <button className="bg-primary-500 text-white px-4 py-2 rounded-xl font-medium">
+                Оплатить
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Referral Code */}
+      <div className="px-4 mt-6">
+        <div className="bg-white rounded-2xl shadow-sm p-4">
           <p className="text-sm text-gray-500 mb-2">Ваш реферальный код</p>
           <div className="flex items-center gap-3">
             <div className="flex-1 bg-gray-100 rounded-xl px-4 py-3 font-mono text-xl font-bold text-center tracking-wider">
@@ -202,13 +247,13 @@ export default function ReferralsPage() {
               onClick={copyCode}
               className={clsx(
                 'p-3 rounded-xl transition-colors',
-                copied ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-600'
+                copied ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
               )}
             >
               {copied ? <Check className="w-6 h-6" /> : <Copy className="w-6 h-6" />}
             </button>
             <button
-              onClick={shareCode}
+              onClick={shareLink}
               className="p-3 bg-primary-500 text-white rounded-xl"
             >
               <Share2 className="w-6 h-6" />
@@ -217,178 +262,166 @@ export default function ReferralsPage() {
         </div>
       </div>
 
+      {/* 3 Levels Breakdown */}
+      <div className="px-4 mt-6">
+        <h2 className="font-bold mb-3 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-primary-500" />
+          3 уровня дохода
+        </h2>
+        <div className="space-y-3">
+          {/* Level 1 */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-2xl shadow-sm p-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                  <span className="text-primary-600 font-bold">1</span>
+                </div>
+                <div>
+                  <p className="font-medium">Уровень 1 — {info.levels.level1.percent}%</p>
+                  <p className="text-sm text-gray-500">Прямые приглашения</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-primary-600">+{info.levels.level1.earnings.toLocaleString()} ₽</p>
+                <p className="text-xs text-gray-500">{info.levels.level1.count} чел.</p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Level 2 */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-2xl shadow-sm p-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 font-bold">2</span>
+                </div>
+                <div>
+                  <p className="font-medium">Уровень 2 — {info.levels.level2.percent}%</p>
+                  <p className="text-sm text-gray-500">Приглашённые вашими рефералами</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-blue-600">+{info.levels.level2.earnings.toLocaleString()} ₽</p>
+                <p className="text-xs text-gray-500">{info.levels.level2.count} чел.</p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Level 3 */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-2xl shadow-sm p-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <span className="text-purple-600 font-bold">3</span>
+                </div>
+                <div>
+                  <p className="font-medium">Уровень 3 — {info.levels.level3.percent}%</p>
+                  <p className="text-sm text-gray-500">Рефералы 3-го поколения</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-purple-600">+{info.levels.level3.earnings.toLocaleString()} ₽</p>
+                <p className="text-xs text-gray-500">{info.levels.level3.count} чел.</p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
       {/* How it works */}
       <div className="px-4 mt-6">
-        <h2 className="font-semibold mb-3">Как это работает</h2>
-        <div className="bg-white rounded-2xl shadow-sm p-4 space-y-4">
+        <div className="bg-primary-50 border border-primary-200 rounded-2xl p-4">
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-primary-600 font-bold">1</span>
-            </div>
+            <Info className="w-5 h-5 text-primary-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium">Пригласите друга</p>
-              <p className="text-sm text-gray-500">Поделитесь своим кодом с другим водителем</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-primary-600 font-bold">2</span>
-            </div>
-            <div>
-              <p className="font-medium">Друг регистрируется</p>
-              <p className="text-sm text-gray-500">Получите {info.bonusRates.registration} ₽ после регистрации</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-primary-600 font-bold">3</span>
-            </div>
-            <div>
-              <p className="font-medium">Друг совершает поездки</p>
-              <p className="text-sm text-gray-500">
-                +{info.bonusRates.firstTrip} ₽ за первую поездку, +{info.bonusRates.milestone} ₽ за каждые {info.bonusRates.milestoneTrips} поездок
-              </p>
+              <p className="font-medium text-primary-800 mb-2">Как это работает?</p>
+              <ul className="text-sm text-primary-700 space-y-1">
+                <li>• <b>15%</b> от оплаты подписки ваших прямых рефералов</li>
+                <li>• <b>10%</b> от подписок рефералов 2-го уровня</li>
+                <li>• <b>5%</b> от подписок рефералов 3-го уровня</li>
+                <li className="pt-2 text-primary-600 font-medium">
+                  Стоимость подписки: {info.subscription.price.toLocaleString()} ₽ / {info.subscription.duration} дней
+                </li>
+              </ul>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Pending payout */}
-      {info.stats.pendingPayout > 0 && (
-        <div className="px-4 mt-6">
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                <Clock className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <p className="font-medium text-amber-900">К выплате</p>
-                <p className="text-sm text-amber-700">{info.stats.pendingPayout} ₽</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tabs */}
+      {/* Level Filter */}
       <div className="px-4 mt-6">
         <div className="flex bg-gray-100 rounded-xl p-1">
-          <button
-            onClick={() => setActiveTab('referrals')}
-            className={clsx(
-              'flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
-              activeTab === 'referrals' ? 'bg-white shadow-sm' : 'text-gray-500'
-            )}
-          >
-            Приглашённые ({info.referrals.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('payouts')}
-            className={clsx(
-              'flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
-              activeTab === 'payouts' ? 'bg-white shadow-sm' : 'text-gray-500'
-            )}
-          >
-            История выплат
-          </button>
+          {(['all', 1, 2, 3] as const).map((level) => (
+            <button
+              key={level}
+              onClick={() => setSelectedLevel(level)}
+              className={clsx(
+                'flex-1 py-2 rounded-lg text-sm font-medium transition-colors',
+                selectedLevel === level ? 'bg-white shadow-sm' : 'text-gray-500'
+              )}
+            >
+              {level === 'all' ? 'Все' : `Уровень ${level}`}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Content */}
+      {/* Referrals List */}
       <div className="px-4 mt-4">
-        {activeTab === 'referrals' ? (
-          info.referrals.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Users className="w-8 h-8 text-gray-400" />
-              </div>
-              <p className="text-gray-500">Пока нет приглашённых</p>
-              <p className="text-sm text-gray-400 mt-1">Поделитесь своим кодом с друзьями</p>
+        {filteredReferrals.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Users className="w-8 h-8 text-gray-400" />
             </div>
-          ) : (
-            <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100">
-              {info.referrals.map((referral) => (
-                <motion.div
-                  key={referral.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-4 flex items-center gap-3"
-                >
-                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
-                    {referral.avatar ? (
-                      <img src={referral.avatar} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <User className="w-6 h-6 text-gray-400" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium">{referral.name}</p>
-                    <p className="text-sm text-gray-500">{referral.totalTrips} поездок</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-400">
-                      {format(new Date(referral.joinedAt), 'd MMM yyyy', { locale: ru })}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )
+            <p className="text-gray-500">Пока нет приглашённых</p>
+            <p className="text-sm text-gray-400 mt-1">Поделитесь своим кодом с друзьями</p>
+          </div>
         ) : (
-          info.recentPayouts.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Wallet className="w-8 h-8 text-gray-400" />
-              </div>
-              <p className="text-gray-500">История выплат пуста</p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100">
-              {info.recentPayouts.map((payout) => (
-                <motion.div
-                  key={payout.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-4 flex items-center gap-3"
-                >
-                  <div className={clsx(
-                    'w-10 h-10 rounded-full flex items-center justify-center',
-                    payout.isPaid ? 'bg-primary-100' : 'bg-amber-100'
-                  )}>
-                    <Gift className={clsx(
-                      'w-5 h-5',
-                      payout.isPaid ? 'text-primary-600' : 'text-amber-600'
-                    )} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium">{getReasonLabel(payout.reason)}</p>
-                    {payout.description && (
-                      <p className="text-sm text-gray-500">{payout.description}</p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-primary-600">+{payout.amount} ₽</p>
-                    <p className="text-xs text-gray-400">
-                      {payout.isPaid ? 'Выплачено' : 'Ожидает'}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )
+          <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100">
+            {filteredReferrals.map((referral) => (
+              <motion.div
+                key={referral.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 flex items-center gap-3"
+              >
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
+                  {referral.avatar ? (
+                    <img src={referral.avatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-6 h-6 text-gray-400" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium">{referral.name}</p>
+                  <p className="text-sm text-gray-500">Уровень {referral.level}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-primary-600">+{referral.totalEarnings} ₽</p>
+                  <p className="text-xs text-gray-400">
+                    {format(new Date(referral.joinedAt), 'd MMM', { locale: ru })}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         )}
       </div>
-
-      {/* Referred by info */}
-      {info.referredBy && (
-        <div className="px-4 mt-6">
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-            <p className="text-sm text-blue-700">
-              Вы были приглашены пользователем <span className="font-medium">{info.referredBy.name}</span>
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
