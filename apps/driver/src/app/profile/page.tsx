@@ -94,7 +94,11 @@ export default function DriverProfilePage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      await api.patch('/api/users/me', { name, email: email || undefined })
+      const data: { name?: string; email?: string } = {}
+      if (name) data.name = name
+      if (email && email.includes('@')) data.email = email
+
+      await api.patch('/api/users/me', data)
       setIsEditing(false)
       fetchProfile()
     } catch (err) {
@@ -249,15 +253,13 @@ export default function DriverProfilePage() {
                   <User className="w-10 h-10 text-gray-400" />
                 )}
               </div>
-              {isEditing && (
-                <button
-                  onClick={handleAvatarClick}
-                  disabled={isUploadingAvatar}
-                  className="absolute bottom-0 right-0 w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white shadow-lg disabled:opacity-50"
-                >
-                  <Camera className="w-4 h-4" />
-                </button>
-              )}
+              <button
+                onClick={handleAvatarClick}
+                disabled={isUploadingAvatar}
+                className="absolute bottom-0 right-0 w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white shadow-lg disabled:opacity-50"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
             </div>
 
             <div className="flex-1">
