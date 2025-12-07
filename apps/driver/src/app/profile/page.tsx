@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
@@ -20,6 +20,7 @@ import {
   FileText,
   Users,
   Gift,
+  Loader2,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { api } from '@/lib/api'
@@ -58,6 +59,8 @@ export default function DriverProfilePage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     checkAuth()
@@ -104,6 +107,50 @@ export default function DriverProfilePage() {
   const handleLogout = () => {
     logout()
     router.replace('/auth')
+  }
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+      alert('Допустимые форматы: JPEG, PNG, WebP, GIF')
+      return
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Максимальный размер файла: 5 МБ')
+      return
+    }
+
+    setIsUploadingAvatar(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await api.post('/api/upload/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+
+      // Refresh auth to get updated avatar
+      checkAuth()
+      fetchProfile()
+    } catch (err) {
+      console.error('Failed to upload avatar:', err)
+      alert('Не удалось загрузить фото')
+    } finally {
+      setIsUploadingAvatar(false)
+      // Clear input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
   }
 
   if (authLoading || isLoading) {
@@ -175,13 +222,24 @@ export default function DriverProfilePage() {
         </div>
       </div>
 
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        onChange={handleAvatarChange}
+        className="hidden"
+      />
+
       {/* Profile Card */}
       <div className="px-4 -mt-16 relative z-10">
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <div className="flex items-center gap-4 mb-6">
             <div className="relative">
-              <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center">
-                {user?.avatar ? (
+              <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+                {isUploadingAvatar ? (
+                  <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
+                ) : user?.avatar ? (
                   <img
                     src={user.avatar}
                     alt={user.name}
@@ -192,7 +250,11 @@ export default function DriverProfilePage() {
                 )}
               </div>
               {isEditing && (
-                <button className="absolute bottom-0 right-0 w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white shadow-lg">
+                <button
+                  onClick={handleAvatarClick}
+                  disabled={isUploadingAvatar}
+                  className="absolute bottom-0 right-0 w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white shadow-lg disabled:opacity-50"
+                >
                   <Camera className="w-4 h-4" />
                 </button>
               )}
