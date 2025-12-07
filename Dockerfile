@@ -49,8 +49,11 @@ COPY --from=builder /app/packages/database/dist ./packages/database/dist
 COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
 
 # Install production dependencies only for api
-RUN pnpm install --prod --filter @vibe-taxi/api --filter @vibe-taxi/database && \
-    pnpm --filter @vibe-taxi/database db:generate
+RUN pnpm install --prod --filter @vibe-taxi/api --filter @vibe-taxi/database
+
+# Copy the generated Prisma Client from builder (already generated during build)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 EXPOSE 3001
 CMD ["node", "apps/api/dist/index.js"]
