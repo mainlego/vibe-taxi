@@ -1,7 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '@vibe-taxi/database'
-import bcrypt from 'bcryptjs'
 
 const paginationSchema = z.object({
   page: z.string().transform(Number).default('1'),
@@ -59,7 +58,7 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       // Generate JWT token
-      const token = fastify.jwt.sign({ userId: user.id })
+      const token = fastify.jwt.sign({ userId: user.id, role: user.role })
 
       return {
         token,
@@ -823,13 +822,17 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       const data = updateSchema.parse(request.body)
 
+      const updateData: Record<string, unknown> = { ...data }
+      if (data.validFrom !== undefined) {
+        updateData.validFrom = data.validFrom ? new Date(data.validFrom) : null
+      }
+      if (data.validUntil !== undefined) {
+        updateData.validUntil = data.validUntil ? new Date(data.validUntil) : null
+      }
+
       const promoCode = await prisma.promoCode.update({
         where: { id },
-        data: {
-          ...data,
-          validFrom: data.validFrom ? new Date(data.validFrom) : data.validFrom === null ? null : undefined,
-          validUntil: data.validUntil ? new Date(data.validUntil) : data.validUntil === null ? null : undefined,
-        },
+        data: updateData,
       })
 
       return promoCode
