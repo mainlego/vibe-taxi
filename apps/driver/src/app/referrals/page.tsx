@@ -83,28 +83,37 @@ export default function ReferralsPage() {
   const fetchReferralInfo = async () => {
     try {
       setIsLoading(true)
-      // В реальном приложении здесь будет запрос к API
-      // Пока используем моковые данные
+      const response = await api.get('/api/referrals/info')
+      const data = response.data
+
+      // Transform API response to match our interface
       setInfo({
-        referralCode: 'DRIVER123',
-        referralLink: 'https://vibetaxi.ru/join?ref=DRIVER123',
+        referralCode: data.referralCode || 'NO_CODE',
+        referralLink: `https://driver.vibe-taxi.ru/auth?ref=${data.referralCode || ''}`,
         subscription: {
-          isActive: true,
-          expiresAt: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
+          isActive: false, // TODO: Add subscription system
+          expiresAt: null,
           price: 4500,
           duration: 30,
         },
         levels: {
-          level1: { percent: 15, count: 3, earnings: 4500 },
-          level2: { percent: 10, count: 5, earnings: 2000 },
-          level3: { percent: 5, count: 12, earnings: 1500 },
+          level1: { percent: 15, count: data.referrals?.length || 0, earnings: data.stats?.totalEarned || 0 },
+          level2: { percent: 10, count: 0, earnings: 0 },
+          level3: { percent: 5, count: 0, earnings: 0 },
         },
         stats: {
-          totalReferrals: 20,
-          totalEarnings: 8000,
-          monthlyEarnings: 3500,
+          totalReferrals: data.stats?.totalReferrals || 0,
+          totalEarnings: data.stats?.totalEarned || 0,
+          monthlyEarnings: data.stats?.pendingPayout || 0,
         },
-        referrals: [],
+        referrals: (data.referrals || []).map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          avatar: r.avatar,
+          level: 1 as const,
+          totalEarnings: 0,
+          joinedAt: r.joinedAt,
+        })),
       })
     } catch (err) {
       console.error('Failed to fetch referral info:', err)
@@ -200,7 +209,7 @@ export default function ReferralsPage() {
     : info.referrals.filter((r) => r.level === selectedLevel)
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-gray-50 pb-32">
       {/* Header */}
       <div className="bg-gradient-to-b from-primary-500 to-primary-600 text-white pb-6">
         <div className="flex items-center gap-4 px-4 py-4">

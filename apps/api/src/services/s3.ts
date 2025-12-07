@@ -12,7 +12,7 @@ const s3Client = new S3Client({
   forcePathStyle: true,
 })
 
-const BUCKET_NAME = process.env.S3_BUCKET || 'vibe-taxi'
+const BUCKET_NAME = process.env.S3_BUCKET || 'vibego'
 
 export async function uploadFile(
   buffer: Buffer,

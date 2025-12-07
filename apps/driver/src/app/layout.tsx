@@ -34,7 +34,9 @@ export default function RootLayout({
     <html lang="ru">
       <body className={inter.className}>
         <Providers>
-          {children}
+          <main className="pb-20">
+            {children}
+          </main>
           <BottomNavigation />
         </Providers>
       </body>
