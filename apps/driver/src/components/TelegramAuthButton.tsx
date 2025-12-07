@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Send } from 'lucide-react'
+import { api } from '@/lib/api'
 
 interface TelegramAuthButtonProps {
   onAuth: (data: {
@@ -34,8 +35,8 @@ export function TelegramAuthButton({ onAuth, botUsername, role }: TelegramAuthBu
 
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/auth/telegram-check?token=${authToken}`)
-        const data = await response.json()
+        const response = await api.get(`/api/auth/telegram-check?token=${authToken}`)
+        const data = response.data
 
         if (data.success && data.user) {
           clearInterval(pollInterval)
