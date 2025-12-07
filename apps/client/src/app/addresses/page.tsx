@@ -188,7 +188,7 @@ export default function AddressesPage() {
         </div>
       ) : (
         <div className="p-4">
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-100">
+          <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100">
             {addresses.map((address) => (
               <div key={address.id} className="relative">
                 <div className="flex items-center gap-4 p-4">
