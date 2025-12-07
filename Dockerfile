@@ -1,5 +1,5 @@
-# Base image
-FROM node:20-alpine AS base
+# Base image - using alpine3.18 for OpenSSL 1.1 compatibility with Prisma
+FROM node:20-alpine3.18 AS base
 RUN npm install -g pnpm
 
 # Dependencies
