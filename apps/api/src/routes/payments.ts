@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '@vibe-taxi/database'
-import { yookassa } from '../lib/yookassa'
+import { yookassa } from '../lib/yookassa.js'
 
 const DRIVER_APP_URL = process.env.DRIVER_URL || 'http://localhost:3002'
 const CLIENT_APP_URL = process.env.CLIENT_URL || 'http://localhost:3000'
