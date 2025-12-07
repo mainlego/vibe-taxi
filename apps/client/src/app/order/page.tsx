@@ -14,7 +14,6 @@ import {
   X,
   ChevronUp,
   ChevronDown,
-  Menu,
   Locate,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
@@ -528,8 +527,24 @@ export default function OrderPage() {
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 p-4 z-10">
           <div className="flex items-center justify-between">
-            <button className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center">
-              <Menu className="w-5 h-5 text-gray-700" />
+            <button
+              onClick={() => router.push('/profile')}
+              className="flex items-center gap-3 bg-white rounded-full shadow-lg pr-4 pl-1 py-1"
+            >
+              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <UserIcon className="w-5 h-5 text-gray-400" />
+                )}
+              </div>
+              <span className="font-medium text-gray-800 max-w-[120px] truncate">
+                {user?.name || 'Гость'}
+              </span>
             </button>
             <div className="bg-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
               <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
