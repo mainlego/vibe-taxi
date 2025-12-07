@@ -40,6 +40,41 @@ async function getUpdates(botToken: string): Promise<any[]> {
   }
 }
 
+// Get user profile photo URL via Telegram Bot API
+async function getUserPhotoUrl(botToken: string, userId: number): Promise<string | undefined> {
+  try {
+    // Get user profile photos
+    const photosResponse = await fetch(
+      `https://api.telegram.org/bot${botToken}/getUserProfilePhotos?user_id=${userId}&limit=1`
+    )
+    const photosData = await photosResponse.json()
+
+    if (!photosData.ok || !photosData.result.photos || photosData.result.photos.length === 0) {
+      return undefined
+    }
+
+    // Get the smallest photo (last in array) for efficiency
+    const photo = photosData.result.photos[0]
+    const fileId = photo[photo.length - 1].file_id // Get smallest size
+
+    // Get file path
+    const fileResponse = await fetch(
+      `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`
+    )
+    const fileData = await fileResponse.json()
+
+    if (!fileData.ok || !fileData.result.file_path) {
+      return undefined
+    }
+
+    // Return full photo URL
+    return `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`
+  } catch (error) {
+    console.error('Failed to get user photo:', error)
+    return undefined
+  }
+}
+
 async function processUpdate(update: any, botToken: string) {
   // Handle /start command with auth token
   if (update.message?.text?.startsWith('/start auth_')) {
@@ -49,13 +84,16 @@ async function processUpdate(update: any, botToken: string) {
     // Extract role from token (format: ROLE_timestamp_random)
     const role = token.startsWith('DRIVER_') ? 'DRIVER' : 'CLIENT' as const
 
+    // Get user photo from Telegram
+    const photoUrl = await getUserPhotoUrl(botToken, user.id)
+
     // Generate auth hash for verification
     const authData = {
       id: user.id,
       first_name: user.first_name,
       last_name: user.last_name,
       username: user.username,
-      photo_url: user.photo_url,
+      photo_url: photoUrl,
       auth_date: Math.floor(Date.now() / 1000),
       hash: '', // Will be generated
     }
