@@ -9,13 +9,13 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 
 // Dynamic import to avoid hydration issues
-const TelegramLoginButton = dynamic(
-  () => import('@/components/TelegramLoginButton').then(mod => mod.TelegramLoginButton),
+const TelegramAuthButton = dynamic(
+  () => import('@/components/TelegramAuthButton').then(mod => mod.TelegramAuthButton),
   {
     ssr: false,
     loading: () => (
-      <div className="flex justify-center h-10">
-        <div className="animate-pulse bg-gray-200 rounded-xl w-48 h-10" />
+      <div className="flex justify-center h-14">
+        <div className="animate-pulse bg-[#0088cc]/30 rounded-xl w-full h-14" />
       </div>
     )
   }
@@ -244,11 +244,10 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                <TelegramLoginButton
-                  botName={TELEGRAM_BOT_USERNAME}
+                <TelegramAuthButton
+                  botUsername={TELEGRAM_BOT_USERNAME}
                   onAuth={handleTelegramAuth}
-                  buttonSize="large"
-                  cornerRadius={12}
+                  role="CLIENT"
                 />
 
                 <p className="text-center text-dark-300 text-xs mt-8">
