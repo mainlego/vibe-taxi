@@ -20,6 +20,9 @@ import { referralRoutes } from './routes/referrals.js'
 // Socket handlers
 import { setupSocketHandlers } from './socket/index.js'
 
+// Telegram bot
+import { startTelegramBot } from './telegram-bot.js'
+
 const PORT = Number(process.env.PORT) || 3001
 const HOST = process.env.HOST || '0.0.0.0'
 
@@ -102,6 +105,9 @@ async function start() {
 
     setupSocketHandlers(io)
     console.log('🔌 Socket.IO initialized')
+
+    // Start Telegram bot polling
+    startTelegramBot()
 
   } catch (err) {
     console.error('❌ Server startup failed:', err)

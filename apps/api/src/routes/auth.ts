@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import crypto from 'crypto'
 import { prisma, UserRole } from '@vibe-taxi/database'
+import { telegramAuthTokens } from '../telegram-bot.js'
 
 // Validation schemas
 const sendCodeSchema = z.object({
@@ -54,21 +55,6 @@ function verifyTelegramAuth(data: Record<string, any>, botToken: string): boolea
 // In-memory codes storage (use Redis in production)
 const verificationCodes = new Map<string, { code: string; expiresAt: Date }>()
 
-// In-memory storage for Telegram deep link auth tokens
-interface TelegramAuthData {
-  user: {
-    id: number
-    first_name: string
-    last_name?: string
-    username?: string
-    photo_url?: string
-    auth_date: number
-    hash: string
-  }
-  role: 'CLIENT' | 'DRIVER'
-  expiresAt: Date
-}
-const telegramAuthTokens = new Map<string, TelegramAuthData>()
 
 function generateCode(): string {
   return Math.floor(1000 + Math.random() * 9000).toString()
@@ -350,69 +336,4 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, user: authData.user }
   })
 
-  // Telegram bot webhook - receives messages from the bot
-  fastify.post('/telegram-webhook', async (request, reply) => {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN
-    if (!botToken) {
-      return reply.status(500).send({ error: 'Telegram bot not configured' })
-    }
-
-    const update = request.body as any
-    console.log('📨 Telegram webhook received:', JSON.stringify(update, null, 2))
-
-    // Handle /start command with auth token
-    if (update.message?.text?.startsWith('/start auth_')) {
-      const token = update.message.text.replace('/start auth_', '')
-      const user = update.message.from
-
-      // Extract role from token (format: ROLE_timestamp_random)
-      const role = token.startsWith('DRIVER_') ? 'DRIVER' : 'CLIENT' as const
-
-      // Generate auth hash for verification
-      const authData = {
-        id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        username: user.username,
-        photo_url: user.photo_url,
-        auth_date: Math.floor(Date.now() / 1000),
-        hash: '', // Will be generated
-      }
-
-      // Generate hash
-      const checkArr = Object.keys(authData)
-        .filter(key => key !== 'hash' && authData[key as keyof typeof authData] !== undefined)
-        .sort()
-        .map(key => `${key}=${authData[key as keyof typeof authData]}`)
-      const checkString = checkArr.join('\n')
-      const secretKey = crypto.createHash('sha256').update(botToken).digest()
-      authData.hash = crypto.createHmac('sha256', secretKey).update(checkString).digest('hex')
-
-      // Store token with user data
-      telegramAuthTokens.set(token, {
-        user: authData,
-        role,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
-      })
-
-      console.log(`✅ Telegram auth token stored: ${token} for user ${user.id} (@${user.username || 'no-username'})`)
-
-      // Send success message to user
-      try {
-        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: user.id,
-            text: '✅ Авторизация успешна! Вернитесь в приложение.',
-            parse_mode: 'HTML',
-          }),
-        })
-      } catch (err) {
-        console.error('Failed to send Telegram message:', err)
-      }
-    }
-
-    return { ok: true }
-  })
 }
