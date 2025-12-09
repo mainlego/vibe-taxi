@@ -21,7 +21,7 @@ export function loadYandexMaps(): Promise<any> {
     }
 
     const script = document.createElement('script')
-    const apiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_KEY
+    const apiKey = process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY
     script.src = `https://api-maps.yandex.ru/2.1/?apikey=${apiKey}&lang=ru_RU`
     script.async = true
 
