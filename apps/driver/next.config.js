@@ -2,6 +2,7 @@
 const nextConfig = {
   output: 'standalone',
   basePath: '/driver',
+  trailingSlash: false,
   reactStrictMode: true,
   transpilePackages: ['@vibe-taxi/database'],
   images: {
