@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  basePath: '/admin',
+  trailingSlash: false,
   reactStrictMode: true,
   transpilePackages: ['@vibe-taxi/database'],
   async rewrites() {
