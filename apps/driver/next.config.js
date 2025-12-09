@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  basePath: '/driver',
   reactStrictMode: true,
   transpilePackages: ['@vibe-taxi/database'],
   images: {
